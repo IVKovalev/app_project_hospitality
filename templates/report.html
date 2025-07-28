@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>Отчет</title></head>
+<body>
+    <h2>Отчет об отсутствующих позициях</h2>
+    <table border="1">
+        <tr><th>Этаж</th><th>Позиция</th></tr>
+        {% for row in rows %}
+        <tr><td>{{ row[0] }}</td><td>{{ row[1] }}</td></tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

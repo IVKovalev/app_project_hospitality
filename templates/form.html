@@ -1,0 +1,36 @@
+<!-- templates/form.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Форма</title>
+    <script>
+    function addPositionField() {
+        const container = document.getElementById("positions");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = "position";
+        input.placeholder = "Позиция";
+        container.appendChild(document.createElement("br"));
+        container.appendChild(input);
+    }
+    </script>
+</head>
+<body>
+    <h2>Отметьте отсутствующие позиции</h2>
+    <form method="POST" action="/submit">
+        <label>Этаж:</label>
+        <select name="floor">
+            <option value="1">1 этаж</option>
+            <option value="2">2 этаж</option>
+            <option value="3">3 этаж</option>
+        </select>
+        <br><br>
+        <div id="positions">
+            <input type="text" name="position" placeholder="Позиция">
+        </div>
+        <button type="button" onclick="addPositionField()">Добавить еще</button>
+        <br><br>
+        <input type="submit" value="Сохранить">
+    </form>
+</body>
+</html>
