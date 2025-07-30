@@ -1,21 +1,131 @@
 <!DOCTYPE html>
 <html>
-<head><title>Отчет</title></head>
+<head>
+    <title>Отчет</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h2, h3 {
+            text-align: center;
+        }
+        .zone-block {
+            border: 1px solid #444;
+            margin-bottom: 40px;
+            padding: 10px;
+        }
+        .zone-title {
+            background-color: #125ca1;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .position-row {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .position-name {
+            width: 150px;
+        }
+        .floor-button {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-weight: bold;
+            background-color: red;
+            cursor: pointer;
+        }
+        .floor-button.completed {
+            background-color: gray;
+            text-decoration: line-through;
+        }
+        #saveChangesBtn {
+            display: none;
+            margin: 30px auto;
+            padding: 10px 20px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: block;
+        }
+    </style>
+</head>
 <body>
     <h2>Отчет об отсутствующих позициях</h2>
-    <table border="1">
-        <tr>
-            <th>Этаж</th>
-            <th>Позиция</th>
-            <th>Зона</th>
-        </tr>
-        {% for row in rows %}
-        <tr>
-            <td>{{ row[0] }}</td>
-            <td>{{ row[1] }}</td>
-            <td>{{ row[2] }}</td>
-        </tr>
+
+    <form method="POST" action="/report/save" id="saveForm">
+        <input type="hidden" name="to_remove" id="toRemoveInput">
+
+        {% for zone in ['Pantry', 'Service Area'] %}
+        <div class="zone-block">
+            <div class="zone-title">{{ 'Кладовка' if zone == 'Pantry' else 'Сервисная зона' }}</div>
+
+            {% set zone_rows = rows | selectattr('2', 'equalto', zone) | list %}
+            {% set grouped = {} %}
+            {% for row in zone_rows %}
+                {% set pos = row[1] %}
+                {% set floor = row[0] %}
+                {% if pos not in grouped %}
+                    {% set _ = grouped.update({pos: [floor]}) %}
+                {% else %}
+                    {% set _ = grouped[pos].append(floor) %}
+                {% endif %}
+            {% endfor %}
+
+            {% for position, floors in grouped.items() %}
+            <div class="position-row">
+                <div class="position-name">{{ position }}</div>
+                {% for floor in floors %}
+                <button type="button" class="floor-button" data-position="{{ position }}" data-floor="{{ floor }}" data-zone="{{ zone }}" onclick="toggleCompleted(this)">
+                    {{ floor }}
+                </button>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
         {% endfor %}
-    </table>
+
+        <button id="saveChangesBtn" onclick="submitChanges()">Сохранить изменения</button>
+    </form>
+
+    <script>
+        const toRemove = [];
+
+        function toggleCompleted(btn) {
+            btn.classList.toggle("completed");
+
+            const pos = btn.dataset.position;
+            const floor = btn.dataset.floor;
+            const zone = btn.dataset.zone;
+            const key = `${floor}|||${pos}|||${zone}`;
+
+            if (btn.classList.contains("completed")) {
+                if (!toRemove.includes(key)) {
+                    toRemove.push(key);
+                }
+            } else {
+                const index = toRemove.indexOf(key);
+                if (index !== -1) {
+                    toRemove.splice(index, 1);
+                }
+            }
+
+            document.getElementById("saveChangesBtn").style.display = toRemove.length > 0 ? "block" : "none";
+        }
+
+        function submitChanges() {
+            event.preventDefault();
+            document.getElementById("toRemoveInput").value = JSON.stringify(toRemove);
+            document.getElementById("saveForm").submit();
+        }
+    </script>
 </body>
 </html>

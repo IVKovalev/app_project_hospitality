@@ -51,79 +51,82 @@
             display: none;
         }
     </style>
+
     <script>
         const pantryOptions = ['Шоколад', 'Кофе', 'Чай'];
-		const serviceOptions = ['Наволочки', 'Простыни', 'Полотенца'];
+        const serviceOptions = ['Наволочки', 'Простыни', 'Полотенца'];
 
-		function updateFloor(select) {
-			if (select.value) {
-				// Меняем отображаемый текст в первой опции
-				select.options[0].textContent = 'Этаж ' + select.value;
-				select.selectedIndex = 0;
-				showPositionFields();
-			}
-		}
+        function updateFloor(select) {
+            if (select.value) {
+                // Меняем текст и значение первой опции
+                select.options[0].text = 'Этаж ' + select.value;
+                select.options[0].value = select.value;
+                select.selectedIndex = 0;
 
-		function showPositionFields() {
-			document.getElementById('positions').innerHTML = ''; 
-			document.getElementById('serviceZonePositions').innerHTML = '';
-			addPositionField('positions', 'position_pantry', pantryOptions);
-			addPositionField('serviceZonePositions', 'position_service', serviceOptions);
-			document.getElementById('addPositionBtn').style.display = 'block';
-			document.getElementById('addServiceZonePositionBtn').style.display = 'block';
-			document.getElementById('submitBtn').style.display = 'block';
-		}
+                showPositionFields();
+            }
+        }
 
-		function addPositionField(containerId, fieldName, optionsList) {
-			const container = document.getElementById(containerId);
-			const selectedOptions = Array.from(container.querySelectorAll('select')).map(select => select.value);
-			const select = document.createElement("select");
-			select.name = fieldName;
-	
-			const placeholderOption = document.createElement("option");
-			placeholderOption.value = "";
-			placeholderOption.text = "Выберите позицию...";
-			placeholderOption.disabled = true;
-			placeholderOption.selected = true;
-			select.add(placeholderOption);
+        function showPositionFields() {
+            document.getElementById('positions').innerHTML = '';
+            document.getElementById('serviceZonePositions').innerHTML = '';
+            addPositionField('positions', 'position_pantry', pantryOptions);
+            addPositionField('serviceZonePositions', 'position_service', serviceOptions);
+            document.getElementById('addPositionBtn').style.display = 'block';
+            document.getElementById('addServiceZonePositionBtn').style.display = 'block';
+            document.getElementById('submitBtn').style.display = 'block';
+        }
 
-			optionsList.forEach(option => {
-				if (!selectedOptions.includes(option)) {
-					const opt = document.createElement("option");
-					opt.value = option;
-					opt.text = option;
-					select.add(opt);
-				}
-			});
+        function addPositionField(containerId, fieldName, optionsList) {
+            const container = document.getElementById(containerId);
+            const selectedOptions = Array.from(container.querySelectorAll('select')).map(select => select.value);
+            const select = document.createElement("select");
+            select.name = fieldName;
 
-			container.appendChild(document.createElement("br"));
-			container.appendChild(select);
-		}
+            const placeholderOption = document.createElement("option");
+            placeholderOption.value = "";
+            placeholderOption.text = "Выберите позицию...";
+            placeholderOption.disabled = true;
+            placeholderOption.selected = true;
+            select.add(placeholderOption);
+
+            optionsList.forEach(option => {
+                if (!selectedOptions.includes(option)) {
+                    const opt = document.createElement("option");
+                    opt.value = option;
+                    opt.text = option;
+                    select.add(opt);
+                }
+            });
+
+            container.appendChild(document.createElement("br"));
+            container.appendChild(select);
+        }
     </script>
 </head>
 <body>
     <h2>Отметьте отсутствующие позиции</h2>
     <form method="POST" action="/submit">
-        
+
         <button type="button" onclick="window.location.href='/report'" class="button">Отчет</button>
 
-        <div style="position: relative;">
-			<select id="floorSelect" name="floor" class="button" onchange="updateFloor(this)" style="appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center;">
-				<option value="">Этаж</option>
-				{% for floor in floors %}
-					<option value="{{ floor }}">Этаж {{ floor }}</option>
-				{% endfor %}
-			</select>
-		</div>
+        <!-- Выпадающий список выглядит как кнопка -->
+        <select id="floorSelect" name="floor" class="button" onchange="updateFloor(this)"
+            style="appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center;">
+            <option value="">Этаж</option>
+            {% for floor in floors %}
+                <option value="{{ floor }}">{{ floor }}</option>
+            {% endfor %}
+        </select>
 
         <h3>Кладовка</h3>
         <div id="positions"></div>
         <button type="button" id="addPositionBtn" class="button hidden" onclick="addPositionField('positions', 'position_pantry', pantryOptions)">Добавить позицию</button>
-        
+
         <h3>Сервисная зона</h3>
         <div id="serviceZonePositions"></div>
         <button type="button" id="addServiceZonePositionBtn" class="button hidden" onclick="addPositionField('serviceZonePositions', 'position_service', serviceOptions)">Добавить позицию</button>
-        
+
         <input type="submit" id="submitBtn" value="Сохранить" style="display:none;">
     </form>
 </body>
