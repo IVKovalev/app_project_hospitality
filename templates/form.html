@@ -56,10 +56,12 @@
 		const serviceOptions = ['Наволочки', 'Простыни', 'Полотенца'];
 
 		function updateFloor(select) {
-			const button = document.getElementById('floorButton');
-			button.textContent = 'Этаж ' + select.value;
-			select.classList.add('hidden');
-			showPositionFields();
+			if (select.value) {
+				// Меняем отображаемый текст в первой опции
+				select.options[0].textContent = 'Этаж ' + select.value;
+				select.selectedIndex = 0;
+				showPositionFields();
+			}
 		}
 
 		function showPositionFields() {
@@ -105,13 +107,14 @@
         
         <button type="button" onclick="window.location.href='/report'" class="button">Отчет</button>
 
-        <button type="button" id="floorButton" class="button" onclick="document.getElementById('floorSelect').classList.toggle('hidden')">Этаж</button>
-        <select id="floorSelect" name="floor" class="hidden" onchange="updateFloor(this)">
-            <option value="">Выберите этаж</option>
-            {% for floor in floors %}
-                <option value="{{ floor }}">{{ floor }} этаж</option>
-            {% endfor %}
-        </select>
+        <div style="position: relative;">
+			<select id="floorSelect" name="floor" class="button" onchange="updateFloor(this)" style="appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center;">
+				<option value="">Этаж</option>
+				{% for floor in floors %}
+					<option value="{{ floor }}">Этаж {{ floor }}</option>
+				{% endfor %}
+			</select>
+		</div>
 
         <h3>Кладовка</h3>
         <div id="positions"></div>
