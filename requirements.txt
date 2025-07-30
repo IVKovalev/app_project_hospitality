@@ -1,6 +1,4 @@
 flask
-json
-csv
 gunicorn
 pandas
 openpyxl
