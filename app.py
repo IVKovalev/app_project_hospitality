@@ -1,33 +1,37 @@
 from flask import Flask, render_template, request, redirect
 import os
 import csv
+import json
 
 app = Flask(__name__)
 
-def update_floor_data(floor, pantry_positions, service_positions):
-    rows = []
-    try:
-        with open('data.csv', newline='') as f:
-            rows = list(csv.reader(f))
-    except FileNotFoundError:
-        rows = []
+DATA_FILE = 'data.csv'
 
-    # Удаляем записи для текущего этажа
+def read_data():
+    try:
+        with open(DATA_FILE, newline='') as f:
+            return list(csv.reader(f))
+    except FileNotFoundError:
+        return []
+
+def write_data(rows):
+    with open(DATA_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
+
+def update_floor_data(floor, pantry_positions, service_positions):
+    rows = read_data()
     rows = [row for row in rows if row[0] != floor]
 
-    # Добавляем кладовку
     for pos in pantry_positions:
         if pos.strip():
             rows.append([floor, pos.strip(), 'Pantry'])
 
-    # Добавляем сервисную зону
     for pos in service_positions:
         if pos.strip():
             rows.append([floor, pos.strip(), 'Service Area'])
 
-    with open('data.csv', 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
+    write_data(rows)
 
 @app.route('/')
 def index():
@@ -44,14 +48,21 @@ def submit():
 
 @app.route('/report')
 def report():
-    rows = []
-    try:
-        with open('data.csv', newline='') as f:
-            reader = csv.reader(f)
-            rows = list(reader)
-    except FileNotFoundError:
-        rows = []
+    rows = read_data()
     return render_template('report.html', rows=rows)
+
+@app.route('/report/save', methods=['POST'])
+def save_report_changes():
+    to_remove = json.loads(request.form['to_remove'])
+    rows = read_data()
+
+    updated = [
+        row for row in rows
+        if f"{row[0]}|||{row[1]}|||{row[2]}" not in to_remove
+    ]
+
+    write_data(updated)
+    return redirect('/report')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
