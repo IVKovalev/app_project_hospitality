@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect
 import os
 import csv
 import json
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -33,10 +34,22 @@ def update_floor_data(floor, pantry_positions, service_positions):
 
     write_data(rows)
 
+def load_items():
+    df = pd.read_excel('items.xlsx')  # или .csv
+    pantry_items = df[df['Zone'] == 'Pantry']['Item'].tolist()
+    service_items = df[df['Zone'] == 'Service Area']['Item'].tolist()
+    return pantry_items, service_items
+
 @app.route('/')
 def index():
     floors = [2, 3, 6, 7, 8, 9]
-    return render_template('form.html', floors=floors)
+    pantry_items, service_items = load_items()  # читаем из Excel
+    return render_template(
+        'form.html',
+        floors=floors,
+        pantry_items=pantry_items,
+        service_items=service_items
+    )
 
 @app.route('/submit', methods=['POST'])
 def submit():
