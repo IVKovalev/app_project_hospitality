@@ -2,19 +2,34 @@
 <html>
 <head>
     <title>Отчет</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
+            margin: 0;
+            background-color: #f5f5f5;
         }
+
+        .report-wrapper {
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
         h2, h3 {
             text-align: center;
         }
+
         .zone-block {
             border: 1px solid #444;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             padding: 10px;
         }
+
         .zone-title {
             background-color: #125ca1;
             color: white;
@@ -22,18 +37,27 @@
             text-align: center;
             font-weight: bold;
         }
-        .position-row {
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
         }
+
+        th, td {
+            padding: 6px;
+            text-align: center;
+        }
+
         .position-name {
-            width: 150px;
+            text-align: left;
+            padding-left: 10px;
+            font-weight: bold;
         }
+
         .floor-button {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             border: none;
             color: white;
@@ -41,28 +65,72 @@
             background-color: red;
             cursor: pointer;
         }
+
         .floor-button.completed {
             background-color: gray;
             text-decoration: line-through;
         }
-        #saveChangesBtn {
-            display: none;
-            margin: 30px auto;
-            padding: 10px 20px;
+
+        .button, input[type="submit"] {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            box-sizing: border-box;
             background-color: #1976d2;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
-            display: block;
+        }
+
+        .button:hover {
+            background-color: #125ca1;
+        }
+
+        #saveChangesBtn {
+            display: none;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 600px) {
+            .floor-button {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            .position-name {
+                font-size: 14px;
+            }
+
+            .zone-title {
+                font-size: 16px;
+            }
+
+            .button {
+                font-size: 14px;
+                padding: 8px;
+            }
+
+            th, td {
+                font-size: 12px;
+                padding: 4px;
+            }
         }
     </style>
 </head>
 <body>
+<div class="report-wrapper">
     <h2>Отчет об отсутствующих позициях</h2>
+
+    <!-- Кнопка возврата на форму -->
+    <button onclick="window.location.href='/'" class="button">Добавить позиции</button>
 
     <form method="POST" action="/report/save" id="saveForm">
         <input type="hidden" name="to_remove" id="toRemoveInput">
+
+        {% set all_floors = rows | map(attribute=0) | map('int') | list %}
+        {% set sorted_floors = all_floors | unique | sort %}
 
         {% for zone in ['Pantry', 'Service Area'] %}
         <div class="zone-block">
@@ -80,52 +148,77 @@
                 {% endif %}
             {% endfor %}
 
-            {% for position, floors in grouped.items() %}
-            <div class="position-row">
-                <div class="position-name">{{ position }}</div>
-                {% for floor in floors %}
-                <button type="button" class="floor-button" data-position="{{ position }}" data-floor="{{ floor }}" data-zone="{{ zone }}" onclick="toggleCompleted(this)">
-                    {{ floor }}
-                </button>
-                {% endfor %}
+            <div style="overflow-x:auto;">
+                <table border="1">
+                    <thead>
+                        <tr>
+                            <th>Позиция</th>
+                            {% for floor in sorted_floors %}
+                            <th>{{ floor }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for position, floors in grouped.items() %}
+                        <tr>
+                            <td class="position-name">{{ position }}</td>
+                            {% for floor in sorted_floors %}
+                                {% if floor|string in floors %}
+                                <td>
+                                    <button type="button" class="floor-button"
+                                            data-position="{{ position }}"
+                                            data-floor="{{ floor }}"
+                                            data-zone="{{ zone }}"
+                                            onclick="toggleCompleted(this)">
+                                        {{ floor }}
+                                    </button>
+                                </td>
+                                {% else %}
+                                <td></td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            {% endfor %}
         </div>
         {% endfor %}
 
-        <button id="saveChangesBtn" onclick="submitChanges()">Сохранить изменения</button>
+        <button id="saveChangesBtn" class="button" onclick="submitChanges()">Сохранить изменения</button>
     </form>
+</div>
 
-    <script>
-        const toRemove = [];
+<script>
+    const toRemove = [];
 
-        function toggleCompleted(btn) {
-            btn.classList.toggle("completed");
+    function toggleCompleted(btn) {
+        btn.classList.toggle("completed");
 
-            const pos = btn.dataset.position;
-            const floor = btn.dataset.floor;
-            const zone = btn.dataset.zone;
-            const key = `${floor}|||${pos}|||${zone}`;
+        const pos = btn.dataset.position;
+        const floor = btn.dataset.floor;
+        const zone = btn.dataset.zone;
+        const key = `${floor}|||${pos}|||${zone}`;
 
-            if (btn.classList.contains("completed")) {
-                if (!toRemove.includes(key)) {
-                    toRemove.push(key);
-                }
-            } else {
-                const index = toRemove.indexOf(key);
-                if (index !== -1) {
-                    toRemove.splice(index, 1);
-                }
+        if (btn.classList.contains("completed")) {
+            if (!toRemove.includes(key)) {
+                toRemove.push(key);
             }
-
-            document.getElementById("saveChangesBtn").style.display = toRemove.length > 0 ? "block" : "none";
+        } else {
+            const index = toRemove.indexOf(key);
+            if (index !== -1) {
+                toRemove.splice(index, 1);
+            }
         }
 
-        function submitChanges() {
-            event.preventDefault();
-            document.getElementById("toRemoveInput").value = JSON.stringify(toRemove);
-            document.getElementById("saveForm").submit();
-        }
-    </script>
+        document.getElementById("saveChangesBtn").style.display = toRemove.length > 0 ? "block" : "none";
+    }
+
+    function submitChanges() {
+        event.preventDefault();
+        document.getElementById("toRemoveInput").value = JSON.stringify(toRemove);
+        document.getElementById("saveForm").submit();
+    }
+</script>
 </body>
 </html>
