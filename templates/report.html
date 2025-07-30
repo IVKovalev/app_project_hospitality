@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Отчет</title>
+    <title>Report</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
             margin: 0;
-            background-color: #f5f5f5;
+            background: url("/static/bg.jpg") no-repeat center center fixed;
+            background-size: cover;
         }
 
         .report-wrapper {
             max-width: 500px;
             margin: auto;
             padding: 20px;
-            background-color: white;
+            background-color: rgba(255,255,255,0.8);
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
@@ -121,10 +122,10 @@
 </head>
 <body>
 <div class="report-wrapper">
-    <h2>Отчет об отсутствующих позициях</h2>
+    <h2>Missing Items Report</h2>
 
     <!-- Кнопка возврата на форму -->
-    <button onclick="window.location.href='/'" class="button">Добавить позиции</button>
+    <button onclick="window.location.href='/'" class="button">Add Items</button>
 
     <form method="POST" action="/report/save" id="saveForm">
         <input type="hidden" name="to_remove" id="toRemoveInput">
@@ -134,7 +135,7 @@
 
         {% for zone in ['Pantry', 'Service Area'] %}
         <div class="zone-block">
-            <div class="zone-title">{{ 'Кладовка' if zone == 'Pantry' else 'Сервисная зона' }}</div>
+            <div class="zone-title">{{ 'Pantry' if zone == 'Pantry' else 'Service Area' }}</div>
 
             {% set zone_rows = rows | selectattr('2', 'equalto', zone) | list %}
             {% set grouped = {} %}
@@ -152,7 +153,7 @@
                 <table border="1">
                     <thead>
                         <tr>
-                            <th>Позиция</th>
+                            <th>Item</th>
                             {% for floor in sorted_floors %}
                             <th>{{ floor }}</th>
                             {% endfor %}
@@ -185,7 +186,7 @@
         </div>
         {% endfor %}
 
-        <button id="saveChangesBtn" class="button" onclick="submitChanges()">Сохранить изменения</button>
+        <button id="saveChangesBtn" class="button" onclick="submitChanges()">Save Changes</button>
     </form>
 </div>
 
