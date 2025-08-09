@@ -16,57 +16,23 @@
             background: url("/static/bg.jpg") no-repeat center center fixed;
             background-size: cover;
         }
-
-        h2 {
-            text-align: center;
-        }
-
+        h2 { text-align: center; }
         form {
-            max-width: 500px;
-            margin: auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px; margin: auto; padding: 20px; background-color: white;
+            border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-
         .button, select, input[type="submit"], input[list] {
-            width: 100%;
-            margin: 10px 0;
-            padding: 10px;
-            box-sizing: border-box;
+            width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box;
         }
-
         .button, input[type="submit"] {
-            background-color: #1976d2;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            background-color: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;
         }
-
-        .button:hover, input[type="submit"]:hover {
-            background-color: #125ca1;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        input[list] {
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
+        .button:hover, input[type="submit"]:hover { background-color: #125ca1; }
+        .hidden { display: none; }
+        input[list] { border: 1px solid #ccc; border-radius: 4px; }
         @media (max-width: 600px) {
-            select, input[list] {
-                font-size: 18px;
-                padding: 12px;
-            }
-
-            option {
-                font-size: 18px;
-            }
+            select, input[list] { font-size: 18px; padding: 12px; }
+            option { font-size: 18px; }
         }
     </style>
 
@@ -86,7 +52,7 @@
         function showPositionFields() {
             document.getElementById('positions').innerHTML = '';
             document.getElementById('serviceZonePositions').innerHTML = '';
-            // При выборе этажа сразу одно поле на каждую зону
+            // Сразу по одному полю на каждую зону
             addItem('positions', 'position_pantry', pantryOptions);
             addItem('serviceZonePositions', 'position_service', serviceOptions);
             document.getElementById('addPositionBtn').style.display = 'block';
@@ -94,22 +60,55 @@
             document.getElementById('submitBtn').style.display = 'block';
         }
 
+        // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+
+        function getInputs(container, fieldName) {
+            return Array.from(container.querySelectorAll(`input[name="${fieldName}"]`));
+        }
+
         function getSelectedValues(container, fieldName) {
-            return Array.from(container.querySelectorAll(`input[name="${fieldName}"]`))
+            return getInputs(container, fieldName)
                 .map(i => i.value.trim())
                 .filter(Boolean);
         }
 
-        function rebuildDatalist(datalistEl, optionsList, excludeValues) {
-            datalistEl.innerHTML = '';
+        // Пересобрать datalist для конкретного input
+        function rebuildDatalistForInput(inputEl, optionsList, excludeValues, query) {
+            const listId = inputEl.getAttribute('list');
+            const datalist = document.getElementById(listId);
+            if (!datalist) return;
+
+            const q = (query || '').trim().toLowerCase();
+            datalist.innerHTML = '';
+
             optionsList.forEach(opt => {
-                if (!excludeValues.includes(opt)) {
+                // оставляем текущее значение, даже если оно "исключено"
+                const keepCurrent = inputEl.value && inputEl.value === opt;
+                const excluded = excludeValues.includes(opt) && !keepCurrent;
+                const matches = q === '' || opt.toLowerCase().includes(q);
+
+                if (!excluded && matches) {
                     const o = document.createElement('option');
                     o.value = opt;
-                    datalistEl.appendChild(o);
+                    datalist.appendChild(o);
                 }
             });
         }
+
+        // Обновить ВСЕ остальные поля (кроме sourceInput) — чтобы убрать/вернуть выбранные значения
+        function refreshOthers(container, fieldName, optionsList, sourceInput) {
+            const inputs = getInputs(container, fieldName);
+            const selectedAll = getSelectedValues(container, fieldName);
+
+            inputs.forEach(inp => {
+                // Для каждого инпута исключаем все выбранные значения, КРОМЕ его собственного
+                const excludeForThis = selectedAll.filter(v => v && v !== inp.value);
+                const currentQuery = inp === sourceInput ? sourceInput.value : inp.value;
+                rebuildDatalistForInput(inp, optionsList, excludeForThis, currentQuery);
+            });
+        }
+
+        // --- ГЛАВНАЯ: ДОБАВИТЬ ПОЛЕ С «ЖИВЫМ» ФИЛЬТРОМ (DATALIST) ---
 
         function addItem(containerId, fieldName, optionsList) {
             const container = document.getElementById(containerId);
@@ -133,13 +132,21 @@
             const datalist = document.createElement('datalist');
             datalist.id = listId;
 
-            const exclude = getSelectedValues(container, fieldName);
-            rebuildDatalist(datalist, optionsList, exclude);
+            // Инициализируем список для нового поля
+            const selectedNow = getSelectedValues(container, fieldName);
+            rebuildDatalistForInput(input, optionsList, selectedNow, '');
 
+            // ЖИВОЙ фильтр: обновляем datalist по мере ввода
+            input.addEventListener('input', () => {
+                const selectedLive = getSelectedValues(container, fieldName);
+                // исключаем уже выбранные в других полях
+                const excludeForThis = selectedLive.filter(v => v && v !== input.value);
+                rebuildDatalistForInput(input, optionsList, excludeForThis, input.value);
+            });
+
+            // Когда окончательно выбрали значение — обновим остальные поля этой зоны
             input.addEventListener('change', () => {
-                const excludeNow = getSelectedValues(container, fieldName);
-                container.querySelectorAll(`datalist[id^="${containerId}-${fieldName}-list-"]`)
-                    .forEach(dl => rebuildDatalist(dl, optionsList, excludeNow));
+                refreshOthers(container, fieldName, optionsList, input);
             });
 
             wrap.appendChild(input);
@@ -147,7 +154,7 @@
             container.appendChild(wrap);
 
             input.focus();
-            return false;
+            return false; // чтобы кнопка не делала лишних действий
         }
     </script>
 </head>
