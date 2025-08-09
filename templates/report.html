@@ -127,67 +127,73 @@
     <!-- Кнопка возврата на форму -->
     <button onclick="window.location.href='/'" class="button">Add Items</button>
 
-    <form method="POST" action="/report/save" id="saveForm">
-        <input type="hidden" name="to_remove" id="toRemoveInput">
+    {% if rows|length == 0 %}
+        <p style="text-align:center; font-size:18px; font-weight:bold; margin:20px 0;">
+            No missing items yet 🎉
+        </p>
+    {% else %}
+        <form method="POST" action="/report/save" id="saveForm">
+            <input type="hidden" name="to_remove" id="toRemoveInput">
 
-        {% set all_floors = rows | map(attribute=0) | map('int') | list %}
-        {% set sorted_floors = all_floors | unique | sort %}
+            {% set all_floors = rows | map(attribute=0) | map('int') | list %}
+            {% set sorted_floors = all_floors | unique | sort %}
 
-        {% for zone in ['Pantry', 'Service Area'] %}
-        <div class="zone-block">
-            <div class="zone-title">{{ 'Pantry' if zone == 'Pantry' else 'Service Area' }}</div>
+            {% for zone in ['Pantry', 'Service Area'] %}
+            <div class="zone-block">
+                <div class="zone-title">{{ 'Pantry' if zone == 'Pantry' else 'Service Area' }}</div>
 
-            {% set zone_rows = rows | selectattr('2', 'equalto', zone) | list %}
-            {% set grouped = {} %}
-            {% for row in zone_rows %}
-                {% set pos = row[1] %}
-                {% set floor = row[0] %}
-                {% if pos not in grouped %}
-                    {% set _ = grouped.update({pos: [floor]}) %}
-                {% else %}
-                    {% set _ = grouped[pos].append(floor) %}
-                {% endif %}
+                {% set zone_rows = rows | selectattr('2', 'equalto', zone) | list %}
+                {% set grouped = {} %}
+                {% for row in zone_rows %}
+                    {% set pos = row[1] %}
+                    {% set floor = row[0] %}
+                    {% if pos not in grouped %}
+                        {% set _ = grouped.update({pos: [floor]}) %}
+                    {% else %}
+                        {% set _ = grouped[pos].append(floor) %}
+                    {% endif %}
+                {% endfor %}
+
+                <div style="overflow-x:auto;">
+                    <table border="1">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                {% for floor in sorted_floors %}
+                                <th>{{ floor }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for position, floors in grouped.items() %}
+                            <tr>
+                                <td class="position-name">{{ position }}</td>
+                                {% for floor in sorted_floors %}
+                                    {% if floor|string in floors %}
+                                    <td>
+                                        <button type="button" class="floor-button"
+                                                data-position="{{ position }}"
+                                                data-floor="{{ floor }}"
+                                                data-zone="{{ zone }}"
+                                                onclick="toggleCompleted(this)">
+                                            {{ floor }}
+                                        </button>
+                                    </td>
+                                    {% else %}
+                                    <td></td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             {% endfor %}
 
-            <div style="overflow-x:auto;">
-                <table border="1">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            {% for floor in sorted_floors %}
-                            <th>{{ floor }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for position, floors in grouped.items() %}
-                        <tr>
-                            <td class="position-name">{{ position }}</td>
-                            {% for floor in sorted_floors %}
-                                {% if floor|string in floors %}
-                                <td>
-                                    <button type="button" class="floor-button"
-                                            data-position="{{ position }}"
-                                            data-floor="{{ floor }}"
-                                            data-zone="{{ zone }}"
-                                            onclick="toggleCompleted(this)">
-                                        {{ floor }}
-                                    </button>
-                                </td>
-                                {% else %}
-                                <td></td>
-                                {% endif %}
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% endfor %}
-
-        <button id="saveChangesBtn" class="button" onclick="submitChanges()">Save Changes</button>
-    </form>
+            <button id="saveChangesBtn" class="button" onclick="submitChanges()">Save Changes</button>
+        </form>
+    {% endif %}
 </div>
 
 <script>

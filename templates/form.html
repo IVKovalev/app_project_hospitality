@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <meta name="theme-color" content="#1976d2">
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,7 +30,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        .button, select, input[type="submit"] {
+        .button, select, input[type="submit"], input[list] {
             width: 100%;
             margin: 10px 0;
             padding: 10px;
@@ -51,30 +52,33 @@
         .hidden {
             display: none;
         }
-		
-		@media (max-width: 600px) {
-        select {
-            font-size: 18px;
-            padding: 12px;
+
+        input[list] {
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
 
-        option {
-            font-size: 18px;
+        @media (max-width: 600px) {
+            select, input[list] {
+                font-size: 18px;
+                padding: 12px;
+            }
+
+            option {
+                font-size: 18px;
+            }
         }
-    }
     </style>
 
     <script>
         const pantryOptions = {{ pantry_items|tojson }};
-		const serviceOptions = {{ service_items|tojson }};
-		
+        const serviceOptions = {{ service_items|tojson }};
+
         function updateFloor(select) {
             if (select.value) {
-                // Меняем текст и значение первой опции
                 select.options[0].text = 'Floor ' + select.value;
                 select.options[0].value = select.value;
                 select.selectedIndex = 0;
-
                 showPositionFields();
             }
         }
@@ -82,37 +86,68 @@
         function showPositionFields() {
             document.getElementById('positions').innerHTML = '';
             document.getElementById('serviceZonePositions').innerHTML = '';
-            addPositionField('positions', 'position_pantry', pantryOptions);
-            addPositionField('serviceZonePositions', 'position_service', serviceOptions);
+            // При выборе этажа сразу одно поле на каждую зону
+            addItem('positions', 'position_pantry', pantryOptions);
+            addItem('serviceZonePositions', 'position_service', serviceOptions);
             document.getElementById('addPositionBtn').style.display = 'block';
             document.getElementById('addServiceZonePositionBtn').style.display = 'block';
             document.getElementById('submitBtn').style.display = 'block';
         }
 
-        function addPositionField(containerId, fieldName, optionsList) {
-            const container = document.getElementById(containerId);
-            const selectedOptions = Array.from(container.querySelectorAll('select')).map(select => select.value);
-            const select = document.createElement("select");
-            select.name = fieldName;
+        function getSelectedValues(container, fieldName) {
+            return Array.from(container.querySelectorAll(`input[name="${fieldName}"]`))
+                .map(i => i.value.trim())
+                .filter(Boolean);
+        }
 
-            const placeholderOption = document.createElement("option");
-            placeholderOption.value = "";
-            placeholderOption.text = "Select item...";
-            placeholderOption.disabled = true;
-            placeholderOption.selected = true;
-            select.add(placeholderOption);
-
-            optionsList.forEach(option => {
-                if (!selectedOptions.includes(option)) {
-                    const opt = document.createElement("option");
-                    opt.value = option;
-                    opt.text = option;
-                    select.add(opt);
+        function rebuildDatalist(datalistEl, optionsList, excludeValues) {
+            datalistEl.innerHTML = '';
+            optionsList.forEach(opt => {
+                if (!excludeValues.includes(opt)) {
+                    const o = document.createElement('option');
+                    o.value = opt;
+                    datalistEl.appendChild(o);
                 }
             });
+        }
 
-            container.appendChild(document.createElement("br"));
-            container.appendChild(select);
+        function addItem(containerId, fieldName, optionsList) {
+            const container = document.getElementById(containerId);
+
+            const wrap = document.createElement('div');
+            wrap.style.margin = '6px 0 12px 0';
+
+            const listId = `${containerId}-${fieldName}-list-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+
+            const input = document.createElement('input');
+            input.setAttribute('list', listId);
+            input.setAttribute('name', fieldName);
+            input.setAttribute('placeholder', 'Start typing to search…');
+            input.style.width = '100%';
+            input.style.padding = '10px';
+            input.style.boxSizing = 'border-box';
+            input.style.border = '1px solid #ccc';
+            input.style.borderRadius = '4px';
+            input.autocomplete = 'off';
+
+            const datalist = document.createElement('datalist');
+            datalist.id = listId;
+
+            const exclude = getSelectedValues(container, fieldName);
+            rebuildDatalist(datalist, optionsList, exclude);
+
+            input.addEventListener('change', () => {
+                const excludeNow = getSelectedValues(container, fieldName);
+                container.querySelectorAll(`datalist[id^="${containerId}-${fieldName}-list-"]`)
+                    .forEach(dl => rebuildDatalist(dl, optionsList, excludeNow));
+            });
+
+            wrap.appendChild(input);
+            wrap.appendChild(datalist);
+            container.appendChild(wrap);
+
+            input.focus();
+            return false;
         }
     </script>
 </head>
@@ -122,7 +157,6 @@
 
         <button type="button" onclick="window.location.href='/report'" class="button">Report</button>
 
-        <!-- Выпадающий список выглядит как кнопка -->
         <select id="floorSelect" name="floor" class="button" onchange="updateFloor(this)"
             style="appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center;">
             <option value="">Floor</option>
@@ -133,11 +167,17 @@
 
         <h3>Pantry</h3>
         <div id="positions"></div>
-        <button type="button" id="addPositionBtn" class="button hidden" onclick="addPositionField('positions', 'position_pantry', pantryOptions)">Add Item</button>
+        <button type="button" id="addPositionBtn" class="button hidden"
+                onclick="return addItem('positions', 'position_pantry', pantryOptions)">
+            Add Item
+        </button>
 
         <h3>Service Area</h3>
         <div id="serviceZonePositions"></div>
-        <button type="button" id="addServiceZonePositionBtn" class="button hidden" onclick="addPositionField('serviceZonePositions', 'position_service', serviceOptions)">Add Item</button>
+        <button type="button" id="addServiceZonePositionBtn" class="button hidden"
+                onclick="return addItem('serviceZonePositions', 'position_service', serviceOptions)">
+            Add Item
+        </button>
 
         <input type="submit" id="submitBtn" value="Save" style="display:none;">
     </form>
