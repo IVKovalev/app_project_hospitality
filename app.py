@@ -3,6 +3,8 @@ import json
 import pandas as pd
 from flask import Flask, render_template, request, redirect
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 app = Flask(__name__)
 
@@ -13,10 +15,16 @@ db = SQLAlchemy(app)
 
 # Модель таблицы
 class MissingItem(db.Model):
+    __tablename__ = 'missing_item'  # явно зафиксируем имя таблицы
     id = db.Column(db.Integer, primary_key=True)
     floor = db.Column(db.String(10), nullable=False)
     position = db.Column(db.String(100), nullable=False)
     zone = db.Column(db.String(50), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('floor', 'position', 'zone', name='uix_floor_pos_zone'),
+        db.Index('ix_floor_zone', 'floor', 'zone'),
+    )
 
 # Загрузка списка позиций из Excel (items.xlsx)
 def load_items():
@@ -41,23 +49,41 @@ def index():
 @app.route('/submit', methods=['POST'])
 def submit():
     floor = request.form.get('floor')
-    pantry_positions = request.form.getlist('position_pantry')
-    service_positions = request.form.getlist('position_service')
+    if not floor:
+        return redirect('/')
 
-    # Удалим все записи для этого этажа
-    MissingItem.query.filter_by(floor=floor).delete()
+    # Списки из формы (могут быть с пустыми значениями)
+    pantry_positions = [p.strip() for p in request.form.getlist('position_pantry') if p.strip()]
+    service_positions = [p.strip() for p in request.form.getlist('position_service') if p.strip()]
 
-    # Добавим новые записи
+    # Уже существующие позиции для этого этажа (чтобы не плодить дубли)
+    existing = MissingItem.query.filter_by(floor=floor).all()
+    existing_set = {(row.position, row.zone) for row in existing}
+
+    # Добавляем только те, которых ещё нет
     for pos in pantry_positions:
-        if pos.strip():
-            db.session.add(MissingItem(floor=floor, position=pos.strip(), zone='Pantry'))
+        if (pos, 'Pantry') not in existing_set:
+            db.session.add(MissingItem(floor=floor, position=pos, zone='Pantry'))
 
     for pos in service_positions:
-        if pos.strip():
-            db.session.add(MissingItem(floor=floor, position=pos.strip(), zone='Service Area'))
+        if (pos, 'Service Area') not in existing_set:
+            db.session.add(MissingItem(floor=floor, position=pos, zone='Service Area'))
 
     db.session.commit()
     return redirect('/')
+
+# Страхуется от добликатов на уровне БД (UPSERT-вставка, сделаем универсально: Postgres на Render + SQLite локально)
+def _is_postgres():
+    return db.engine.url.drivername.startswith('postgresql')
+
+def upsert_missing(floor, position, zone):
+    if _is_postgres():
+        stmt = pg_insert(MissingItem).values(floor=floor, position=position, zone=zone)
+        stmt = stmt.on_conflict_do_nothing(index_elements=['floor', 'position', 'zone'])
+    else:
+        stmt = sqlite_insert(MissingItem).values(floor=floor, position=position, zone=zone)
+        stmt = stmt.on_conflict_do_nothing(index_elements=['floor', 'position', 'zone'])
+    db.session.execute(stmt)
 
 # Отчёт
 @app.route('/report')
@@ -86,5 +112,6 @@ if __name__ == '__main__':
         db.create_all()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
