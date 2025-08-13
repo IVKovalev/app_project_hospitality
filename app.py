@@ -45,6 +45,11 @@ def index():
         service_items=service_items
     )
 
+# Health-check endpoint для пингера. Для того что бы держать приложение горячим. Использую пингер cron-job.org
+@app.route('/health')
+def health():
+    return 'ok', 200
+
 # Сохранение отправленной формы
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -112,6 +117,7 @@ if __name__ == '__main__':
         db.create_all()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
